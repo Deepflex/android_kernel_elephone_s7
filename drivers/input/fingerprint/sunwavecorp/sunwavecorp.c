@@ -110,6 +110,10 @@ static DEFINE_MUTEX(sunwave_device_list_lock);
 static sunwave_sensor_t* g_sunwave_sensor;
 static int sunwave_driver_status = 0;
 
+static bool fast_wakeup = false;
+static bool screen_on = false;
+module_param(fast_wakeup, bool, 0644);
+
 u8 suspend_flag = 0;
 sunwave_sensor_t* get_current_sunwave(void)
 {
@@ -791,6 +795,9 @@ sunwave_dev_ioctl(struct file* filp, unsigned int cmd, unsigned long arg)
             break;
     }
 
+    if (fast_wakeup && !screen_on)
+        sunwave_wakeupSys(sunwave_dev);
+
     mutex_unlock(&sunwave_dev->buf_lock);
     spi_dev_put(spi);
     return retval;
@@ -1348,12 +1355,14 @@ static int sunwave_fb_notifier_callback(struct notifier_block* self,
 
     switch (blank) {
         case FB_BLANK_UNBLANK:
+	    screen_on = true;
             sw_info("%s: lcd on notify\n", __func__);
             sprintf(screen_status, "SCREEN_STATUS=%s", "ON");
             kobject_uevent_env(&sunwave->spi->dev.kobj, KOBJ_CHANGE, screen_env);
             break;
 
         case FB_BLANK_POWERDOWN:
+	    screen_on = false;
             sw_info("%s: lcd off notify\n", __func__);
             sprintf(screen_status, "SCREEN_STATUS=%s", "OFF");
             kobject_uevent_env(&sunwave->spi->dev.kobj, KOBJ_CHANGE, screen_env);
@@ -1387,7 +1396,8 @@ static void work_handler(struct work_struct* data)
 
 static void  finger_workerqueue_init(void)
 {
-    core_queue = create_singlethread_workqueue("sf_wk_main"); //cretae a signal thread worker queue
+    //core_queue = create_singlethread_workqueue("sf_wk_main"); //cretae a signal thread worker queue
+    core_queue = alloc_workqueue("sf_wk_main", WQ_HIGHPRI | WQ_MEM_RECLAIM | WQ_UNBOUND, 0);
 
     if (!core_queue) {
         return;
@@ -1654,4 +1664,3 @@ MODULE_AUTHOR("Jone.Chen, <yuhua8688@tom.com>");
 MODULE_DESCRIPTION("User mode SPI device interface");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("spi:sunwave_fp");
-

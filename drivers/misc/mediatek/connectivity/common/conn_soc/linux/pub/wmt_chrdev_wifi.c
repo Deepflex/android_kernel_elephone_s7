@@ -60,7 +60,7 @@ UINT32 gDbgLevel = WIFI_LOG_DBG;
 #define VERSION "1.0"
 
 #define WLAN_IFACE_NAME "wlan0"
-#if CFG_TC1_FEATURE
+#if CFG_TC1_FEATURE || defined(CONFIG_MTK_COMBO_AOSP_TETHERING_SUPPORT) 
 #define LEGACY_IFACE_NAME "legacy0"
 #endif
 
